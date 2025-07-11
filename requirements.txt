@@ -1,0 +1,12 @@
+torch
+torchvision
+pillow
+pandas
+numpy
+tqdm
+open_clip_torch
+scipy
+opencv-python
+mediapipe
+fastapi
+gunicorn
