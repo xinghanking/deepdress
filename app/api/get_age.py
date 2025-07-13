@@ -49,9 +49,6 @@ async def get_info(input: ImageInput):
         if image is None:
             raise HTTPException(status_code=400, detail=f"人像提取失败: {msg}")
 
-        # 3. 缩放图像到模型输入大小
-        image = resize_with_padding(image)
-
         # 4. 模型推理
         result = get_dress_info(image)
 

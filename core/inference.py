@@ -8,7 +8,7 @@ from core.utils import get_face_bbox, get_face_img, get_head_img, resize_with_pa
 model = None
 
 
-def predict(image_rgb):
+def predict(image_rgba):
     global model
     if model is None:
         model = MultiTaskModel()
@@ -19,7 +19,7 @@ def predict(image_rgb):
             model.load_state_dict(ckpt)
         model = model.to(Config.device)
         model.eval()
-    input_tensor = model.preprocess(image_rgb).unsqueeze(0).to(Config.device)
+    input_tensor = model.preprocess(image_rgba).unsqueeze(0).to(Config.device)
     with torch.no_grad():
         kind_logits, gender_logits, age_output = model(input_tensor)
         kind = kind_logits.argmax(dim=1).item()
@@ -43,7 +43,6 @@ def get_dress_info(image_rgb):
             "full": {"gender": gender, "age": age},
         }
     face_img = get_face_img(image_rgb, face_bbox)
-    face_img = resize_with_padding(face_img)
     _, face_gender, face_age = predict(face_img)
     if kind == 1:
         return {
@@ -52,7 +51,6 @@ def get_dress_info(image_rgb):
             "full": {"gender": gender, "age": age},
         }
     head_img = get_head_img(image_rgb, face_bbox)
-    head_img = resize_with_padding(head_img)
     _, head_gender, head_age = predict(head_img)
     return {
         "face": {"gender": face_gender, "age": face_age},
