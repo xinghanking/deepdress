@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import open_clip
 from core.config import Config
+from core.utils import resize_with_padding
+
 
 class MultiTaskModel(nn.Module):
     def __init__(
@@ -23,14 +25,14 @@ class MultiTaskModel(nn.Module):
         # 强制修改ViT的patch_embed以支持4通道输入
         proj = self.backbone.visual.conv1
         old_weight = proj.weight.data
-        # 新权重：前三通道用原权重，第4通道初始化为0（也可以随机）
-        new_weight = torch.zeros(
-            (old_weight.shape[0], 4, old_weight.shape[2], old_weight.shape[3]),
-            dtype=old_weight.dtype,
-            device=old_weight.device
-        )
-        new_weight[:, :3, :, :] = old_weight
-        proj.weight = nn.Parameter(new_weight)
+        if old_weight.shape[1] == 3:
+            new_weight = torch.zeros(
+                (old_weight.shape[0], 4, old_weight.shape[2], old_weight.shape[3]),
+                dtype=old_weight.dtype,
+                device=old_weight.device
+            )
+            new_weight[:, :3, :, :].copy_(old_weight)
+            proj.weight = nn.Parameter(new_weight)
         proj.in_channels = 4
 
         self.dropout = nn.Dropout(0.2)
@@ -40,6 +42,7 @@ class MultiTaskModel(nn.Module):
         self.age_head = nn.Linear(out_dim, 1)
 
     def preprocess(self, image):
+        image = resize_with_padding(image)
         rgba = np.array(image).astype(np.float32) / 255.0
         rgba = torch.tensor(rgba, dtype=torch.float32).permute(2, 0, 1)
         mean = torch.tensor(Config.normalize_mean)

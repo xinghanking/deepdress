@@ -186,6 +186,8 @@ def validate_image(image: Image.Image):
 
 def get_full_img(img_rgb: Image.Image) -> tuple[Image.Image | None, str]:
     try:
+        if img_rgb.mode != "RGB":
+            img_rgb = img_rgb.convert("RGB")
         w, h = img_rgb.size  # Use img.size to get width and height
         image_np = np.array(img_rgb)
         # Validate image
