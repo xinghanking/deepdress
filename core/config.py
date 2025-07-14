@@ -18,7 +18,7 @@ class Config:
     modnet_ckpt = os.path.join(modnet_path, "modnet_photographic_portrait_matting.ckpt")
 
     # 模型参数
-    clip_model = "ViT-B-32"  # CLIP 模型类型
+    clip_model = "ViT-B-32-quickgelu"  # CLIP 模型类型
     clip_pretrain = "openai"  # CLIP 预训练权重
 
     # 训练参数
@@ -27,7 +27,7 @@ class Config:
     epochs = 20  # 训练轮数
     val_ratio = 0.2  # 验证集比例
     early_stop_patience = 8
-    use_amp = True
+    use_amp = torch.cuda.is_available()
     seed = 42
 
     # 预处理参数# 填充颜色（resize_with_padding）

@@ -61,7 +61,7 @@ class DeepDressDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
-        image_path = os.path.join(Config.base_root, "datasets", row["image"])
+        image_path = os.path.join(Config.base_root, "datasets", "wiki", row["image"])
         try:
             image = Image.open(image_path)
             image = self.transforms(image)
@@ -94,8 +94,7 @@ def validate(model, val_loader, criterion_kind, criterion_gender, criterion_age,
 
 
 def monitor_thread_func(model, optimizer, scaler):
-    last_epoch, last_batch = train_progress["epoch"], train_progress["batch"]
-    start_time = time.time()
+    last_epoch, last_batch, start_time = train_progress["epoch"], train_progress["batch"], time.time()
     total_epochs = Config.epochs
     dataset_len = len(train_progress["train_dataset"])
     last_pos = last_epoch * dataset_len + last_batch
@@ -105,8 +104,7 @@ def monitor_thread_func(model, optimizer, scaler):
         if train_progress["epoch"] > last_epoch or train_progress["batch"] > last_batch:
             if train_progress["patience_counter"] == Config.early_stop_patience:
                 break
-            now = time.time()
-            elapsed = now - start_time
+            elapsed = time.time() - start_time
             steps_done = train_progress["epoch"] * total_batches + train_progress["batch"]
             steps_total = total_epochs * total_batches
             avg_step_time = elapsed / (steps_done - last_pos)
@@ -119,6 +117,7 @@ def monitor_thread_func(model, optimizer, scaler):
                 "Elapsed": format_seconds(elapsed),
                 "ETA": format_seconds(eta),
             })
+            pbar.update()
             state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
             save_path = Config.model_save_path
             checkpoint = {
@@ -140,7 +139,6 @@ def monitor_thread_func(model, optimizer, scaler):
                 if train_progress["patience_counter"] == 0:
                     shutil.copy(save_path, Config.model_save_path.replace(".pt", "_best.pt"))
             last_epoch, last_batch = train_progress["epoch"], train_progress["batch"]
-            pbar.refresh()
         else:
             sleep(1)
     pbar.close()
