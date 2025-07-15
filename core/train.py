@@ -30,12 +30,13 @@ datasets_indices_path = os.path.join(Config.checkpoint_dir, "indices")
 bak_save_path = Config.model_save_path.replace(".pt", "_bak.pt")
 # 全局训练状态，用于线程间通信
 train_progress = {
-    "epoch": 0,
-    "batch": 0,
-    "best_val_loss": float('inf'),
-    "patience_counter": 0,
+    "current": {
+        "epoch": 0,
+        "batch": 0,
+    },
+    "full_indices": {},
+    "last_epoch": {},
     "stop": False,
-    "full_indices": {}
 }
 
 #torch.manual_seed(Config.seed)
@@ -96,8 +97,8 @@ def validate(model, val_loader, criterion_kind, criterion_gender, criterion_age,
     return avg_loss
 
 
-def monitor_thread_func(model, optimizer, scaler):
-    last_epoch, last_batch, start_time = train_progress["epoch"], train_progress["batch"], time.time()
+def monitor_thread_func():
+    last_epoch, last_batch, start_time = train_progress["current"]["epoch"], train_progress["current"]["batch"], time.time()
     total_epochs = Config.epochs
     dataset_len = len(train_progress["full_indices"]["train"])
     total_batches = (dataset_len + Config.batch_size - 1) // Config.batch_size
@@ -106,67 +107,49 @@ def monitor_thread_func(model, optimizer, scaler):
     best_path = Config.model_save_path.replace(".pt", "_best.pt")
     if os.path.exists(best_path):
         try:
-            check = torch.load(best_path, map_location=lambda storage, loc: storage)
+            torch.load(best_path, map_location=lambda storage, loc: storage)
         except:
-            check = None
-        if not check:
             unlink(best_path)
-    while train_progress["stop"] == False or last_batch < train_progress['batch']:
-        if train_progress["epoch"] > last_epoch or train_progress["batch"] > last_batch:
-            if train_progress["patience_counter"] == Config.early_stop_patience:
+    while not train_progress["stop"]:
+        if train_progress["current"]["epoch"] > last_epoch or train_progress["current"]["batch"] > last_batch:
+            if train_progress["current"]["patience_counter"] == Config.early_stop_patience:
+                print("stop training")
+                train_progress["stop"] = True
                 break
             elapsed = time.time() - start_time
-            steps_done = train_progress["epoch"] * total_batches + train_progress["batch"]
+            steps_done = train_progress["current"]["epoch"] * total_batches + train_progress["current"]["batch"]
             steps_total = total_epochs * total_batches
             avg_step_time = elapsed / (steps_done - last_pos)
             eta = (steps_total - steps_done) * avg_step_time
             pbar.n = steps_done
             pbar.set_postfix({
-                "Epoch": f"{train_progress['epoch'] + 1}/{total_epochs}",
-                "Batch": f"{train_progress['batch'] + 1}/{total_batches}",
+                "Epoch": f"{train_progress['current']['epoch'] + 1}/{total_epochs}",
+                "Batch": f"{train_progress['current']['batch'] + 1}/{total_batches}",
                 "Elapsed": format_seconds(elapsed),
                 "ETA": format_seconds(eta),
             })
             pbar.refresh()
-            state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
             save_path = Config.model_save_path
-            checkpoint = {
-                "best_val_loss": train_progress["best_val_loss"],
-            }
-            if train_progress["epoch"] > last_epoch:
+            if train_progress["last_epoch"]:
                 json.dump(train_progress["full_indices"], open(datasets_indices_path, "w"))
-                checkpoint["model_state"] = train_progress["state_dict"]
-                checkpoint["optimizer_state"] = train_progress["optimizer_state"]
-                if train_progress["patience_counter"] == 0:
-                    try:
-                        if os.path.exists(best_path):
-                            shutil.copy(best_path, best_path.replace(".pt", "_bak.pt"))
-                        torch.save(checkpoint, best_path)
-                    except:
-                        raise RuntimeError("保存训练模型失败")
+                try:
+                    if os.path.exists(best_path):
+                        shutil.copy(best_path, best_path.replace(".pt", "_bak.pt"))
+                    torch.save(train_progress["last_epoch"], best_path)
+                    del train_progress["last_epoch"]
+                except:
+                    raise RuntimeError("保存训练模型失败")
             else:
-                checkpoint["model_state"] = state_dict
-                checkpoint["optimizer_state"] = optimizer.state_dict()
-                checkpoint["patience_counter"] = train_progress["patience_counter"]
-                if train_progress["epoch"] < total_epochs - 1 or train_progress["batch"] < total_batches - 1:
-                    checkpoint["epoch"] = train_progress["epoch"]
-                    checkpoint["batch"] = train_progress["batch"]
-                    checkpoint["patience_counter"] = train_progress["patience_counter"]
-                    checkpoint["rng_state"] = torch.get_rng_state()
-                    checkpoint["cuda_rng_state"] = torch.cuda.get_rng_state() if torch.cuda.is_available() else None
-                if scaler is not None:
-                    checkpoint["scaler_state"] = scaler.state_dict()
                 try:
                     if os.path.exists(save_path):
                         shutil.copy(save_path, bak_save_path)
-                    torch.save(checkpoint, save_path)
+                    torch.save(train_progress["current"], save_path)
                 except:
                     raise RuntimeError("保存训练模型失败")
-            last_epoch, last_batch = train_progress["epoch"], train_progress["batch"]
-        else:
-            sleep(10)
-    if train_progress["patience_counter"] == 0:
-        shutil.copy(Config.model_save_path, best_path)
+            last_epoch, last_batch = train_progress["current"]["epoch"], train_progress["current"]["batch"]
+        sleep(3)
+    if train_progress["last_epoch"]:
+        torch.save(train_progress["last_epoch"], best_path)
     pbar.close()
 
 #set_seed()
@@ -232,30 +215,34 @@ if checkpoint:
     start_batch = checkpoint.get("batch", 0)
     best_val_loss = checkpoint.get("best_val_loss", float('inf'))
     patience_counter = checkpoint.get("patience_counter", 0)
-
+else:
+    best_val_loss = float('inf')
+    patience_counter = 0
+train_progress["current"] = checkpoint
 val_loader = DataLoader(val_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=2)
 # 更新全局状态
-train_progress["epoch"] = start_epoch
-train_progress["batch"] = start_batch
-train_progress["best_val_loss"] = best_val_loss
-train_progress["patience_counter"] = patience_counter
+train_progress["current"]["epoch"] = start_epoch
+train_progress["current"]["batch"] = start_batch
+train_progress["current"]["best_val_loss"] = best_val_loss
+train_progress["current"]["patience_counter"] = patience_counter
 train_progress["full_indices"] = full_indices
 
 # 启动监控线程
-monitor_thread = threading.Thread(target=monitor_thread_func, args=(model, optimizer, scaler))
+monitor_thread = threading.Thread(target=monitor_thread_func)
 monitor_thread.start()
 
 for epoch in range(start_epoch, Config.epochs):
     train_dataset = torch.utils.data.Subset(full_dataset, full_indices["train"])
     train_loader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=False, num_workers=2)
     model.train()
-    total_loss = 0.0
+    #total_loss = 0.0
 
     for batch_idx, (images, kind, gender, age) in enumerate(train_loader):
         # 跳过已训练批次
         if epoch == start_epoch and batch_idx < start_batch:
+            train_progress["current"]["epoch"] = epoch
+            train_progress["current"]["batch"] = batch_idx
             continue
-
         images = images.to(Config.device)
         kind = kind.to(Config.device)
         gender = gender.to(Config.device)
@@ -281,23 +268,30 @@ for epoch in range(start_epoch, Config.epochs):
             loss.backward()
             optimizer.step()
 
-        total_loss += loss.item()
+        #total_loss += loss.item()
 
         # 更新进度状态（无任何print）
-        train_progress["epoch"] = epoch
-        train_progress["batch"] = batch_idx
-
+        train_progress["current"]["epoch"] = epoch
+        train_progress["current"]["batch"] = batch_idx
+        train_progress["current"]["model_state"] = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+        train_progress["current"]["optimizer_state"] = optimizer.state_dict()
+        train_progress["current"]["rng_state"] = torch.get_rng_state()
+        train_progress["current"]["cuda_rng_state"] = torch.cuda.get_rng_state() if torch.cuda.is_available() else None
+        if scaler is not None:
+            train_progress["current"]["scaler_state"] = scaler.state_dict()
     val_loss = validate(model, val_loader, criterion_kind, criterion_gender, criterion_age, Config.device)
-
     if val_loss < best_val_loss:
         best_val_loss = val_loss
-        patience_counter = 0
-        train_progress["best_val_loss"] = best_val_loss
-        train_progress["patience_counter"] = patience_counter
-
+        train_progress["current"]["patience_counter"] = 0
+        train_progress["current"]["best_val_loss"] = best_val_loss
+        train_progress["last_epoch"] = {
+            "model_state": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "best_val_loss": best_val_loss
+        }
     else:
         patience_counter += 1
-        train_progress["patience_counter"] = patience_counter
+        train_progress["current"]["patience_counter"] = patience_counter
         if patience_counter >= getattr(Config, "early_stop_patience", 8):
             print("🛑 达到early stopping条件，训练终止。")
             break
