@@ -102,7 +102,7 @@ def monitor_thread_func():
     total_epochs = Config.epochs
     dataset_len = len(train_progress["full_indices"]["train"])
     total_batches = (dataset_len + Config.batch_size - 1) // Config.batch_size
-    last_pos = last_epoch * total_batches + last_batch
+    last_pos = last_epoch * total_batches
     pbar = tqdm(total=total_epochs * total_batches, desc="Training Progress", dynamic_ncols=True)
     best_path = Config.model_save_path.replace(".pt", "_best.pt")
     if os.path.exists(best_path):
