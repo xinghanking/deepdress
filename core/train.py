@@ -130,7 +130,7 @@ def monitor_thread_func():
             })
             pbar.refresh()
             save_path = Config.model_save_path
-            if train_progress["last_epoch"]:
+            if "last_epoch" in train_progress:
                 json.dump(train_progress["full_indices"], open(datasets_indices_path, "w"))
                 try:
                     if os.path.exists(best_path):
@@ -240,8 +240,6 @@ for epoch in range(start_epoch, Config.epochs):
     for batch_idx, (images, kind, gender, age) in enumerate(train_loader):
         # 跳过已训练批次
         if epoch == start_epoch and batch_idx < start_batch:
-            train_progress["current"]["epoch"] = epoch
-            train_progress["current"]["batch"] = batch_idx
             continue
         images = images.to(Config.device)
         kind = kind.to(Config.device)
