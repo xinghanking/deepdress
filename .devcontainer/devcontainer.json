@@ -1,0 +1,7 @@
+{
+  "name": "DeepDress Container",
+  "image": "mcr.microsoft.com/devcontainers/python:latest",
+  "onCreateCommand": [
+    "pip install -r requirements.txt"
+  ]
+}
