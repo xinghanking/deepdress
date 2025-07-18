@@ -1,6 +1,9 @@
 {
   "name": "DeepDress Development Container",
   "image": "mcr.microsoft.com/devcontainers/python:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
   "onCreateCommand": [
     "pip install -r requirements.txt"
   ]
