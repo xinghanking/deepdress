@@ -1,6 +1,6 @@
 {
   "name": "DeepDress Development Container",
-  "image": "mcr.microsoft.com/devcontainers/python:latest",
+  "image": "python:3.13.5-slim-jammy",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
