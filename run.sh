@@ -15,22 +15,6 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 检查 Python 版本（推荐 3.8+）
-PYTHON_VERSION=$(python3 --version | cut -d ' ' -f 2)
-PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d '.' -f 1)
-PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d '.' -f 2)
-if [ $PYTHON_MAJOR -lt 3 ] || { [ $PYTHON_MAJOR -eq 3 ] && [ $PYTHON_MINOR -lt 8 ]; }; then
-    echo "Error: Python 3.8 or higher is required. Current version: $PYTHON_VERSION"
-    exit 1
-fi
-# 检查 Python 版本
-PYTHON_VERSION=$(python3 --version | cut -d ' ' -f 2)
-PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d '.' -f 1)
-PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d '.' -f 2)
-if [ $PYTHON_MAJOR -lt 3 ] || { [ $PYTHON_MAJOR -eq 3 ] && [ $PYTHON_MINOR -lt 8 ]; }; then
-    echo "Error: Python 3.8 or higher is required. Current version: $PYTHON_VERSION"
-    exit 1
-fi
 # 检查 requirements.txt 是否存在
 if [ ! -f requirements.txt ]; then
     echo "Error: requirements.txt not found."
@@ -116,6 +100,6 @@ case "$1" in
         stop
         ;;
     *)
-        echo "Usage: $0 {start|stop|reload|start}"
+        echo "Usage: $0 {start|stop|reload|restart}"
         exit 1
 esac
