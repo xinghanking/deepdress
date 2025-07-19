@@ -9,5 +9,6 @@ scipy
 opencv-python
 mediapipe
 fastapi
+uvicorn
 gunicorn
 gdown
