@@ -1,6 +1,6 @@
 {
   "name": "DeepDress Development Container",
-  "image": "python:latest",
+  "image": "python:3.9.23",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
