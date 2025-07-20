@@ -1,4 +1,4 @@
 {
   "name": "DeepDress Development Container",
-  "image": "ghcr.io/xinghanking/deepdress:latest"
+  "image": "ghcr.io/xinghanking/deepdress:sha256-4eee8de76911725222a1094e97009cef897e9766abd842f2021666d802a16c67"
 }
