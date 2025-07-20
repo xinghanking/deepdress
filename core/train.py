@@ -144,15 +144,16 @@ def monitor_thread_func():
                     if os.path.exists(save_path):
                         shutil.copy(save_path, bak_save_path)
                     torch.save(train_progress["current"], save_path)
+                    sleep(60)
                 except:
                     raise RuntimeError("保存训练模型失败")
             last_epoch, last_batch = train_progress["current"]["epoch"], train_progress["current"]["batch"]
-        sleep(3)
     if train_progress["last_epoch"]:
         torch.save(train_progress["last_epoch"], best_path)
     pbar.close()
 
 #set_seed()
+
 
 model = MultiTaskModel()
 if torch.cuda.device_count() > 1:
@@ -283,8 +284,8 @@ for epoch in range(start_epoch, Config.epochs):
         train_progress["current"]["patience_counter"] = 0
         train_progress["current"]["best_val_loss"] = best_val_loss
         train_progress["last_epoch"] = {
-            "model_state": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
-            "optimizer_state": optimizer.state_dict(),
+            "model_state": train_progress["current"]["model_state"],
+            "optimizer_state": train_progress["current"]["optimizer_state"],
             "best_val_loss": best_val_loss
         }
     else:
