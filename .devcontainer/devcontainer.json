@@ -1,6 +1,4 @@
 {
   "name": "DeepDress Development Container",
-  "build": {
-    "dockerfile": "../Dockerfile"
-  }
+  "image": "python:3.11.13"
 }
