@@ -7,6 +7,7 @@ tqdm
 open_clip_torch
 scipy
 opencv-python
+opencv-python-headless
 mediapipe
 fastapi
 uvicorn
