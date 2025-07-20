@@ -1,4 +1,6 @@
 {
   "name": "DeepDress Development Container",
-  "image": "ghcr.io/xinghanking/deepdress:latest"
+  "build": {
+    "dockerfile": "../Dockerfile"
+  }
 }
