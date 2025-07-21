@@ -99,6 +99,12 @@ case "$1" in
     stop)
         stop
         ;;
+    reload)
+        reload
+        ;;
+    restart)
+        restart
+        ;;
     *)
         echo "Usage: $0 {start|stop|reload|restart}"
         exit 1
