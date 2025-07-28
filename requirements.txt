@@ -9,6 +9,7 @@ scipy
 opencv-python
 opencv-python-headless
 mediapipe
+python-multipart
 fastapi
 uvicorn
 gunicorn
