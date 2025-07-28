@@ -19,6 +19,7 @@ router = APIRouter()
 class ImageInput(BaseModel):
     image_url: Optional[str] = None
     image_base64: Optional[str] = None
+    image_upload: Optional[UploadFile] = None
 
 @router.post("/get_age")
 async def get_info(input: ImageInput):
@@ -28,7 +29,9 @@ async def get_info(input: ImageInput):
             try:
                 response = requests.get(input.image_url, timeout=5)
                 response.raise_for_status()
-                image = Image.open(BytesIO(response.content)).convert("RGB")
+                if not response.headers["content-type"].startswith("image/"):
+                    raise HTTPException(status_code=400, detail=f"图片格式有误")
+                image = Image.open(BytesIO(response.content))
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"图片下载失败: {str(e)}")
         elif input.image_base64:
@@ -36,18 +39,28 @@ async def get_info(input: ImageInput):
                 image_data = base64.b64decode(input.image_base64)
                 if image_data is None:
                     raise HTTPException(status_code=400, detail=f"图片格式有误")
-                image = Image.open(image_data).convert("RGB")
-                if image.mode != "RGB":
-                    image = image.convert("RGB")
+                image = Image.open(image_data)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Base64解码失败: {str(e)}")
+        elif input.image_upload:
+            try:
+                if not input.image_upload.content_type.startswith("image/"):
+                    raise HTTPException(status_code=400, detail=f"上传图片有误")
+                image_data = await input.image_upload.read()
+                if image_data is None:
+                    raise HTTPException(status_code=400, detail=f"上传图片有误")
+                image = Image.open(BytesIO(image_data))
+                await input.image_upload.close()
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"获取失败: {str(e)}")
         else:
-            raise HTTPException(status_code=400, detail="必须提供 image_url 或 image_base64")
-
+            raise HTTPException(status_code=400, detail="必须提供 image_url 或 image_base64 或 上传图片")
+        if image.mode != "RGB":
+            image = image.convert("RGB")
         # 2. 提取人像区域
         image, msg = get_full_img(image)
         if image is None:
-            raise HTTPException(status_code=400, detail=f"人像提取失败: {msg}")
+            return {"code": 1, "msg": msg}
 
         # 4. 模型推理
         result = get_dress_info(image)
@@ -60,4 +73,4 @@ async def get_info(input: ImageInput):
     except Exception as e:
         tb = traceback.format_exc()
         print(tb)
-    raise HTTPException(status_code=500, detail=f"服务内部错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"服务内部错误: {str(e)}")
