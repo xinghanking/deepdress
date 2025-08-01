@@ -5,6 +5,8 @@ import sys
 import threading
 import traceback
 from collections import OrderedDict
+from typing import Optional
+from facenet_pytorch import MTCNN
 
 import cv2
 import mediapipe as mp
@@ -86,7 +88,7 @@ def get_face_mesh():
             static_image_mode=True,
             max_num_faces=2,
             refine_landmarks=True,
-            min_detection_confidence=0.1
+            min_detection_confidence=0.6
         )
     return _mp_solutions[thread_id]["face_mesh"]
 
@@ -105,7 +107,7 @@ def get_face_detection():
     if thread_id not in _mp_solutions:
         _mp_solutions[thread_id] = {}
     if "face_detection" not in _mp_solutions[thread_id]:
-        _mp_solutions[thread_id]["face_detection"] = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.1)
+        _mp_solutions[thread_id]["face_detection"] = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.6)
     return _mp_solutions[thread_id]["face_detection"]
 
 def pad_to_32_multiples(image: Image.Image):
@@ -184,7 +186,7 @@ def validate_image(image: Image.Image):
         return False, f"验证失败: {str(e)}"
 
 
-def get_full_img(img_rgb: Image.Image) -> tuple[Image.Image | None, str]:
+def get_full_img(img_rgb: Image.Image) -> tuple[Optional[Image.Image], str]:
     try:
         if img_rgb.mode != "RGB":
             img_rgb = img_rgb.convert("RGB")
@@ -207,7 +209,8 @@ def get_full_img(img_rgb: Image.Image) -> tuple[Image.Image | None, str]:
         alpha = np.clip(alpha, 0, 1)
 
         # Thresholding, generate binary mask
-        binary_mask = (alpha > 0.4).astype(np.uint8)
+        alpha_scaled = (alpha * 255).astype(np.uint8)
+        _, binary_mask = cv2.threshold(alpha_scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         labeled, num_features = ndimage.label(binary_mask)
         if num_features == 0:
@@ -279,7 +282,21 @@ def get_full_img(img_rgb: Image.Image) -> tuple[Image.Image | None, str]:
         tb_str = traceback.format_exc()
         return None, f"Extraction failed: {str(e)}，{tb_str}"
 
-def get_face_bbox(full_img: Image.Image) -> tuple[int, int, int, int] | None:
+
+def check_req_img(img):
+    mtcnn = MTCNN(keep_all=True, device='cuda' if torch.cuda.is_available() else 'cpu')
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    boxes, _ = mtcnn.detect(img)
+    if boxes is None:
+        return False
+    left, top, right, bottom = map(int, boxes[0])
+    if right - left > Config.face_min_size and bottom - top > Config.face_min_size:
+        return True
+    return False
+
+
+def get_face_bbox(full_img: Image.Image):
     img_np = np.array(full_img)  # 转换为RGB NumPy图像
     h, w = img_np.shape[:2]
     # 使用 MediaPipe 检测人脸
