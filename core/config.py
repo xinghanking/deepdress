@@ -22,7 +22,7 @@ class Config:
     clip_pretrain = "openai"  # CLIP 预训练权重
 
     # 训练参数
-    batch_size = 16  # 批次大小
+    batch_size = 32  # 批次大小
     lr = 1e-4  # 学习率
     epochs = 20  # 训练轮数
     val_ratio = 0.2  # 验证集比例
